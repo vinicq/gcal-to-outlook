@@ -35,8 +35,8 @@ jobs:
           --onefile
           --name GCalSync
           --icon ${{ github.workspace }}\assets\icon.ico
-          --add-data ${{ github.workspace }}\assets\icon.ico;assets
-          --add-data ${{ github.workspace }}\assets\icon.png;assets
+          --add-data "${{ github.workspace }}\assets\icon.ico;assets"
+          --add-data "${{ github.workspace }}\assets\icon.png;assets"
           --distpath .
           --workpath build\work
           --specpath build
