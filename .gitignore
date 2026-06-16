@@ -45,5 +45,6 @@ installer/
 # Environment variables
 .env
 
-# Claude Code (local IDE settings)
+# Claude Code (local IDE settings + local project memory)
 .claude/
+CLAUDE.md

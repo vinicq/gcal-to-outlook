@@ -49,6 +49,11 @@ The sync is intentionally one-way. Changes made directly in Outlook or Teams are
 
 The application ships as a Windows installer. The `.exe` is not stored in the repository (binaries do not belong in git) - it is published under **Releases**.
 
+> **Two ways to run this - read the Setup Guide first: [English](docs/SETUP.md) | [Português](docs/SETUP.pt-BR.md).**
+> The Teams calendar is the same calendar as your Microsoft 365 mailbox, so events must be written into it one of two ways:
+> - **Method A (admin authorization):** no Outlook needed. Your IT admin authorizes the app once for the whole organization (Microsoft Graph). Best for rolling out to colleagues who do not use Outlook.
+> - **Method B (Outlook Classic):** no admin needed. Install **Outlook Classic** (not the "new Outlook"), add your Microsoft 365 account, and the app writes through it. The new, web-based Outlook does not work for this.
+
 ### Download
 
 1. Open the [Releases page](https://github.com/vinicq/gcal-to-outlook/releases).
