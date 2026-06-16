@@ -34,7 +34,7 @@ jobs:
           python -m PyInstaller
           --onefile
           --name GCalSync
-          --icon assets\icon.ico
+          --icon ${{ github.workspace }}\assets\icon.ico
           --distpath .
           --workpath build\work
           --specpath build
