@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and usage help
+    url: https://github.com/vinicq/gcal-to-outlook/discussions
+    about: Ask setup or usage questions here instead of opening an issue.
+  - name: Documentation
+    url: https://github.com/vinicq/gcal-to-outlook#readme
+    about: Read the README for install, configuration, and troubleshooting first.
