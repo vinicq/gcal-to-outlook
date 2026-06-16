@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gcal-to-outlook"
+version = "1.0.0"
+description = "Sync Google Calendar events to Microsoft Outlook / Teams automatically"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
+keywords = ["google-calendar", "outlook", "microsoft-teams", "sync", "windows"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: Microsoft :: Windows",
+    "License :: OSI Approved :: MIT License",
+]
+dependencies = [
+    "google-api-python-client>=2.130.0",
+    "google-auth>=2.30.0",
+    "google-auth-oauthlib>=1.2.0",
+    "msal>=1.31.0",
+    "requests>=2.32.0",
+    "pywin32>=306; sys_platform == 'win32'",
+    "tzdata>=2024.1",
+    "pystray>=0.19.5",
+    "Pillow>=10.0.0",
+]
+
+[project.optional-dependencies]
+build = ["pyinstaller>=6.0.0"]
+test = ["pytest>=8.0.0", "ruff>=0.6.0"]
+
+[project.urls]
+Homepage = "https://github.com/vinicq/gcal-to-outlook"
+Issues = "https://github.com/vinicq/gcal-to-outlook/issues"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+py-modules = [
+    "app", "sync", "google_client", "ms_client", "ms_client_com",
+    "mapping", "store", "monitor", "setup_wizard", "dedup",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = ["E501"]

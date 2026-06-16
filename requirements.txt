@@ -1,0 +1,11 @@
+# Runtime dependencies. For development install, prefer:  pip install -e ".[test]"
+# Build tooling (pyinstaller) lives in pyproject's [build] extra, not here.
+google-api-python-client>=2.130.0
+google-auth>=2.30.0
+google-auth-oauthlib>=1.2.0
+msal>=1.31.0
+requests>=2.32.0
+pywin32>=306; sys_platform == "win32"
+tzdata>=2024.1
+pystray>=0.19.5
+Pillow>=10.0.0

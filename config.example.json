@@ -1,0 +1,21 @@
+{
+  "google": {
+    "calendar_id": "primary",
+    "credentials_file": "google_credentials.json",
+    "token_file": "google_token.json"
+  },
+  "microsoft": {
+    "mode": "com",
+    "outlook_account": "you@example.com",
+    "client_id": "",
+    "tenant_id": "",
+    "token_cache_file": "ms_token_cache.bin",
+    "calendar_id": ""
+  },
+  "sync": {
+    "poll_interval_seconds": 300,
+    "window_days_ahead": 60,
+    "default_timezone": "America/New_York",
+    "tag_prefix": "[GCal]"
+  }
+}
