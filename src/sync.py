@@ -128,6 +128,16 @@ def sync_once(cfg, g, m, store):
 
         payload = google_to_ms(ev, default_tz, tag_prefix)
         ms_id, stored_updated = store.get_mapping(gid)
+
+        # Recover from a missing or reset local DB: if there is no mapping but an
+        # Outlook event already carries this Google id's [sync-id] marker, adopt
+        # that event instead of creating a duplicate.
+        if not ms_id:
+            existing = m.find_by_sync_id(gid)
+            if existing:
+                ms_id = existing
+                stored_updated = None  # force one refresh; mapping is stored after
+
         try:
             if ms_id:
                 ev_updated = ev.get("updated", "")

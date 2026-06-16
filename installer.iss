@@ -8,7 +8,7 @@
 ;   "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" installer.iss
 
 #define MyAppName "GCal Teams Sync"
-#define MyAppVersion "1.0.1"
+#define MyAppVersion "1.0.2"
 #define MyAppPublisher "Vinicius Queiroz"
 #define MyAppExeName "GCalSync.exe"
 
@@ -26,6 +26,7 @@ DefaultGroupName=GCal Teams Sync
 DisableProgramGroupPage=yes
 UninstallDisplayName={#MyAppName}
 UninstallDisplayIcon={app}\{#MyAppExeName}
+SetupIconFile=assets\icon.ico
 OutputDir=installer
 OutputBaseFilename=GCalSync-Setup
 Compression=lzma2/ultra64

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-06-16
+
+### Fixed
+
+- Duplicate events. After a lost or reset local database, the sync recreated
+  events that were already in Outlook. It now looks up its own events by the
+  `[sync-id]` marker before creating, so it adopts the existing event instead
+  of duplicating. Create new, update only when Google reports a change, delete
+  when removed in Google.
+- Outlook status showed "Disconnected (CoInitialize...)" in the monitor even
+  when sync worked. The status check runs on a worker thread and now
+  initializes COM on that thread (CO_E_NOTINITIALIZED).
+
+### Added
+
+- App, installer, and executable icon.
+- Monitor: an "Export log" button, a plain "Offline" status when an account is
+  unreachable, and a note that Outlook for Windows must be installed.
+
 ## [1.0.1] - 2026-06-16
 
 ### Fixed
@@ -41,6 +60,7 @@ First public release.
 - Duplicate-event recovery tool for cleaning up events left behind by an
   interrupted or repeated sync.
 
-[Unreleased]: https://github.com/vinicq/gcal-to-outlook/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/vinicq/gcal-to-outlook/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/vinicq/gcal-to-outlook/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/vinicq/gcal-to-outlook/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/vinicq/gcal-to-outlook/releases/tag/v1.0.0

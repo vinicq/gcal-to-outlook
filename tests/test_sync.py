@@ -45,10 +45,14 @@ class FakeMicrosoftClient:
     raise_on_create makes create_event raise, to exercise the error path.
     """
 
-    def __init__(self, raise_on_create=False):
+    def __init__(self, raise_on_create=False, existing=None):
         self.created = []   # list of payloads passed to create_event
         self.updated = []   # list of (entry_id, payload)
         self.deleted = []   # list of entry_ids
+        # existing: maps google_id -> entry_id for events already in Outlook,
+        # simulating the [sync-id] marker lookup when the local DB has no mapping.
+        self.existing = dict(existing or {})
+        self.find_calls = []  # google_ids passed to find_by_sync_id
         self._raise_on_create = raise_on_create
         self._counter = 0
 
@@ -66,6 +70,10 @@ class FakeMicrosoftClient:
 
     def delete_event(self, entry_id):
         self.deleted.append(entry_id)
+
+    def find_by_sync_id(self, google_id):
+        self.find_calls.append(google_id)
+        return self.existing.get(google_id)
 
 
 # --------------------------------------------------------------------------
@@ -124,6 +132,39 @@ def test_new_event_is_created_and_mapping_stored(cfg, store):
     ms_id, stored_updated = store.get_mapping("g-new")
     assert ms_id == "ms-1"
     assert stored_updated == "2026-06-16T10:00:00Z"
+
+
+def test_no_mapping_but_existing_event_is_adopted_not_duplicated(cfg, store):
+    # Regression: after a lost/reset DB, yesterday's events are still in Outlook
+    # (carrying the [sync-id] marker). The sync must adopt them, never duplicate.
+    # Local store is empty, but Outlook already has an event for this Google id.
+    event = _timed_event("g-1", "2026-06-16T10:00:00Z")
+    g = FakeGoogleClient([([event], "tok-1")])
+    m = FakeMicrosoftClient(existing={"g-1": "ms-yesterday"})
+
+    sync_once(cfg, g, m, store)
+
+    # NO duplicate created; the pre-existing event is updated in place
+    assert m.created == []
+    assert len(m.updated) == 1
+    assert m.updated[0][0] == "ms-yesterday"
+    # and the mapping is now persisted so later cycles skip without scanning
+    ms_id, stored_updated = store.get_mapping("g-1")
+    assert ms_id == "ms-yesterday"
+    assert stored_updated == "2026-06-16T10:00:00Z"
+
+
+def test_no_mapping_and_no_existing_event_creates_once(cfg, store):
+    # Counterpart: a genuinely new event (not present in Outlook) is created.
+    event = _timed_event("g-new", "2026-06-16T10:00:00Z")
+    g = FakeGoogleClient([([event], "tok-1")])
+    m = FakeMicrosoftClient(existing={})  # nothing pre-existing
+
+    sync_once(cfg, g, m, store)
+
+    assert m.find_calls == ["g-new"]  # it looked before creating
+    assert len(m.created) == 1
+    assert m.updated == []
 
 
 def test_changed_event_triggers_update_not_create(cfg, store):

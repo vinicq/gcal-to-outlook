@@ -127,6 +127,29 @@ class MicrosoftClient:
         if resp.status_code not in (200, 204, 404):
             raise RuntimeError(f"Error deleting event ({resp.status_code}): {resp.text}")
 
+    def find_by_sync_id(self, google_id: str) -> str | None:
+        """Return the id of an event previously created for this Google id.
+
+        Searches event bodies for the '[sync-id: <google_id>]' marker so the
+        sync can adopt its own events after a local DB loss instead of creating
+        duplicates. Uses Graph $search, which covers the body field.
+        Returns None on no match or if the search is unavailable.
+        """
+        marker = f"[sync-id: {google_id}]"
+        try:
+            resp = self._request(
+                "GET", self._events_base(),
+                params={"$search": f'"{marker}"', "$select": "id,body", "$top": "25"},
+            )
+            if resp.status_code != 200:
+                return None
+            for ev in resp.json().get("value", []):
+                if marker in (ev.get("body", {}).get("content", "") or ""):
+                    return ev.get("id")
+        except Exception:
+            pass
+        return None
+
     def list_changes(
         self,
         delta_token: str | None = None,

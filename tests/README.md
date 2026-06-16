@@ -23,8 +23,11 @@ directly (`import mapping`, `import store`, `from sync import sync_once`).
 
 In `test_sync.py`, `sync_once` is the unit, so it is never replaced. Only the
 Google client (`list_changes`) and the Microsoft client (`create_event` /
-`update_event` / `delete_event`) are faked, because those are the network/COM
-edges. The store is the real `store.Store`.
+`update_event` / `delete_event` / `find_by_sync_id`) are faked, because those
+are the network/COM edges. The store is the real `store.Store`. One test pins
+the anti-duplicate guarantee: with an empty store but an event already present
+in Outlook (matched by `find_by_sync_id`), the sync adopts it instead of
+creating a duplicate.
 
 ## What is intentionally NOT unit-tested, and why
 
