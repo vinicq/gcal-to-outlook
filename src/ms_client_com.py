@@ -133,6 +133,31 @@ class OutlookComClient:
         except Exception:
             pass  # already deleted or invalid ID
 
+    def find_by_sync_id(self, google_id: str) -> str | None:
+        """Return the EntryID of an event previously created for this Google id.
+
+        Matches the '[sync-id: <google_id>]' marker that _apply writes into the
+        body. Lets the sync recover its own events when the local mapping DB is
+        missing or reset, so a lost DB does not cause duplicate creation.
+        Returns None if no matching event exists.
+        """
+        self._connect()
+        marker = f"[sync-id: {google_id}]"
+        try:
+            items = self._calendar.Items
+            item = items.GetFirst()
+            while item is not None:
+                try:
+                    body = getattr(item, "Body", "") or ""
+                    if marker in body:
+                        return item.EntryID
+                except Exception:
+                    pass
+                item = items.GetNext()
+        except Exception:
+            pass
+        return None
+
     def _apply(self, appt, payload: dict):
         appt.Subject = payload.get("subject", "(no title)")
         appt.Body = payload.get("body", {}).get("content", "")
