@@ -156,16 +156,26 @@ ligado, **desligue**. O app só funciona com o Classic.
    clique em **Mais informações → Executar assim mesmo**. Instala por usuário, sem
    admin.
 
-## Passo 6 - Primeira execução e primeira sincronização
+## Passo 6 - Primeira execução: o que o assistente pede
 
-1. O assistente abre. Ele detecta o Outlook sozinho e seleciona o modo
-   **Outlook COM**.
-2. Ele pergunta em qual conta do Outlook sincronizar. Coloque o seu endereço do
-   Microsoft 365 (o do Passo 2).
-3. O navegador abre uma vez para entrar no **Google**. Aprove o acesso ao
-   calendário.
-4. A primeira sincronização roda. Pode levar 1 a 2 minutos. O Outlook precisa
-   estar aberto (ou ele abre sozinho).
+Na primeira vez que você abre o app, um assistente aparece numa janela de
+terminal. É rápido. Siga o que ele pede:
+
+1. **"Press Enter to begin"** - aperte Enter.
+2. O assistente verifica o Outlook e seleciona o modo **Outlook COM** sozinho.
+   Ele **não** pergunta a conta aqui.
+3. **"Press Enter to open the browser"** - aperte Enter e, no navegador, **entre
+   na sua conta Google e clique em aprovar** (acesso de leitura ao calendário).
+   Nenhuma senha é guardada.
+4. A primeira sincronização roda. Pode levar 1 a 2 minutos.
+5. **"Schedule auto-start? [y/n]"** - digite **y** para o sync iniciar sozinho
+   junto com o Windows. Dá para mudar isso depois na janela do monitor.
+
+> Se você tem mais de uma conta Microsoft no Outlook (por exemplo uma pessoal e a
+> institucional), o app pode escolher o calendário errado. Abra a janela do
+> monitor, clique em **Reconfigure** ao lado de **Outlook / Teams** e digite o seu
+> endereço institucional (`voce@seu-dominio`) para sincronizar no calendário
+> certo.
 
 ## Passo 7 - Confira no Teams
 
