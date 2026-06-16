@@ -1,4 +1,4 @@
-# gcal-to-outlook
+# <img src="assets/icon.png" width="32" align="top" alt=""> gcal-to-outlook
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -20,14 +20,15 @@ Syncs your Google Calendar into Microsoft Outlook and Teams on Windows. One-way,
 - SQLite mapping store tracks Google-to-Outlook event ID pairs for reliable deletions
 - Configurable polling interval (default: 5 minutes) and lookahead window (default: 60 days)
 - Optional title prefix (e.g. `[GCal]`) to visually distinguish synced events in Outlook
-- GUI status monitor with system tray, manual sync trigger, log viewer, and autostart toggle
+- GUI status monitor with system tray, account status, manual sync, log viewer, log export, and an autostart checkbox
+- Recovers its own events by a `[sync-id]` marker, so a lost local database does not create duplicates
 - First-run setup wizard - no manual JSON editing required for end users
 
 ---
 
 ## How It Works
 
-`sync.py` runs a polling loop. At each tick it calls the Google Calendar API with a stored `syncToken`, which returns only the events that changed since the last call rather than the full calendar. Each changed event is translated to an Outlook-compatible payload and applied on the Microsoft side: new events are created, existing ones are updated, and cancelled events are deleted. A SQLite database (`sync_state.db`) maps each Google event ID to its corresponding Outlook event ID, which is what allows deletions to work correctly even after the Google event is no longer visible.
+`sync.py` runs a polling loop. At each tick it calls the Google Calendar API with a stored `syncToken`, which returns only the events that changed since the last call rather than the full calendar. Each changed event is translated to an Outlook-compatible payload and applied on the Microsoft side: new events are created, existing ones are updated, and cancelled events are deleted. A SQLite database (`sync_state.db`) maps each Google event ID to its corresponding Outlook event ID, which is what allows deletions to work correctly even after the Google event is no longer visible. Every synced event also carries a `[sync-id: <google-id>]` marker in its body. If the database is ever lost or reset, the sync finds its own events by that marker and updates them in place instead of creating duplicates.
 
 There are two ways to write events into Outlook. **COM mode** (the default) drives the locally installed Outlook desktop application through the Windows COM interface via `pywin32` - no Azure app registration required, and events land in the exact Outlook account you specify. **Graph API mode** calls the Microsoft 365 REST API directly using an MSAL token, which works on machines without Outlook installed but requires a registered app in Microsoft Entra with `Calendars.ReadWrite` delegated permission.
 
