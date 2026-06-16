@@ -37,6 +37,15 @@ _STARTUP_FOLDER = Path(os.environ.get("APPDATA", "")) / \
     "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup"
 _STARTUP_VBS = _STARTUP_FOLDER / "GCalSync-autorun.vbs"
 
+
+def _asset(name: str) -> Path:
+    """Resolve a bundled asset. Frozen builds extract data to sys._MEIPASS."""
+    if getattr(sys, "frozen", False):
+        base = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+    else:
+        base = ROOT_DIR
+    return base / "assets" / name
+
 # Command for a single sync cycle and for login
 if getattr(sys, "frozen", False):
     _EXE = Path(sys.executable)
@@ -254,10 +263,28 @@ class Monitor:
         self.root.title("GCal  Teams Sync")
         self.root.resizable(False, False)
         self.root.configure(bg=BG)
+        self._set_window_icon()
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
         self._build_ui()
         self._refresh_all()
         self.root.after(30_000, self._periodic_refresh)
+
+    def _set_window_icon(self):
+        """Set the title-bar and taskbar icon from the bundled icon."""
+        try:
+            ico = _asset("icon.ico")
+            if ico.exists():
+                self.root.iconbitmap(default=str(ico))
+                return
+        except Exception:
+            pass
+        try:
+            png = _asset("icon.png")
+            if png.exists():
+                self._win_icon = tk.PhotoImage(file=str(png))
+                self.root.iconphoto(True, self._win_icon)
+        except Exception:
+            pass
 
     # ── UI construction ───────────────────────────────────────────────────────
     def _build_ui(self):
@@ -587,9 +614,19 @@ class Monitor:
             pystray.MenuItem("Quit", self._tray_quit),
         )
         self._tray = pystray.Icon(
-            "GCalSync", _make_tray_image(), "GCal → Teams Sync", menu
+            "GCalSync", self._tray_image(), "GCal → Teams Sync", menu
         )
         threading.Thread(target=self._tray.run, daemon=True).start()
+
+    def _tray_image(self) -> Image.Image:
+        """Use the bundled icon for the tray; fall back to the drawn icon."""
+        try:
+            png = _asset("icon.png")
+            if png.exists():
+                return Image.open(png)
+        except Exception:
+            pass
+        return _make_tray_image()
 
     def _tray_show(self):
         self.root.after(0, self.root.deiconify)
