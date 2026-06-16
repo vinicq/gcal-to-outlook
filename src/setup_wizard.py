@@ -29,17 +29,36 @@ except Exception:
 # ── Detect execution mode (script vs compiled .exe) ───────────────────────────
 _IS_BUNDLE = getattr(sys, "frozen", False)
 
+
+def _resolve_sync_cmd(is_bundle, executable, venv_py=None, sync_py=None):
+    """Command prefix used to run the sync engine as a child process.
+
+    A frozen build is a single executable (GCalSync.exe): re-invoke it with a
+    mode argument such as "login" or "once", routed by app.py. There is no
+    separate sync.exe. From a source checkout, run the venv Python against
+    src/sync.py.
+    """
+    if is_bundle:
+        return [str(executable)]
+    return [str(venv_py), str(sync_py)]
+
+
 if _IS_BUNDLE:
     ROOT = Path(sys.executable).parent
     VENV = None
     VENV_PY = None
-    _SYNC_CMD = [str(ROOT / "sync.exe")]
+    _SYNC_CMD = _resolve_sync_cmd(True, sys.executable)
 else:
     ROOT = Path(__file__).resolve().parent.parent
     VENV = ROOT / ".venv"
     VENV_PY = VENV / "Scripts" / "python.exe"
     _SYNC_PY = Path(__file__).resolve().parent / "sync.py"
     _SYNC_CMD = None  # set in step_venv()
+
+# Run the login/sync child without its own console window. The child
+# (GCalSync.exe) hides the console in login mode; without this flag it would
+# inherit and hide the wizard's own console window.
+_CHILD_FLAGS = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 GOOGLE_CREDS   = ROOT / "google_credentials.json"
 GOOGLE_TOKEN   = ROOT / "google_token.json"
@@ -336,7 +355,7 @@ def step_venv():
         abort("Failed to install dependencies. See the output above.")
     ok("Dependencies installed.")
 
-    _SYNC_CMD = [str(VENV_PY), str(_SYNC_PY)]
+    _SYNC_CMD = _resolve_sync_cmd(False, sys.executable, VENV_PY, _SYNC_PY)
 
 
 def step_microsoft_creds():
@@ -467,7 +486,7 @@ def step_login():
         print()
         _pause("Press Enter to open the browser...")
 
-        rc = subprocess.run(_SYNC_CMD + ["login"]).returncode
+        rc = subprocess.run(_SYNC_CMD + ["login"], creationflags=_CHILD_FLAGS).returncode
         if rc != 0:
             print()
             warn("There was a problem with the Google login.")
@@ -492,7 +511,7 @@ def step_login():
         print()
         _pause("Press Enter to open the browser...")
 
-        rc = subprocess.run(_SYNC_CMD + ["login"]).returncode
+        rc = subprocess.run(_SYNC_CMD + ["login"], creationflags=_CHILD_FLAGS).returncode
         if rc != 0:
             print()
             warn("There was a problem during login.")
@@ -509,7 +528,7 @@ def step_test():
     section("Test -- Running the first sync cycle")
     print("  Please wait...")
     print()
-    subprocess.run(_SYNC_CMD + ["once"])
+    subprocess.run(_SYNC_CMD + ["once"], creationflags=_CHILD_FLAGS)
     print()
     info("Open Teams > Calendar and look for events with the [GCal] prefix.")
     info("It may take up to 1 minute for events to appear in Teams.")

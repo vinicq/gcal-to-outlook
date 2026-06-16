@@ -35,7 +35,9 @@ false greens (mocking the whole surface) or could not run headless.
 - **`monitor.py`**: tkinter / system-tray GUI. No logic worth isolating from
   the event loop; needs a display.
 - **`setup_wizard.py`**: interactive console wizard driven by `input()`
-  prompts. Exercised manually during first-run setup.
+  prompts. Exercised manually during first-run setup. Its one pure helper,
+  `_resolve_sync_cmd` (which child command the wizard runs), IS unit-tested in
+  `test_setup_wizard.py` after a frozen-build-only bug shipped there.
 - **`dedup.py`** and the COM methods of `ms_client_com.OutlookComClient`
   (`create_event`, `update_event`, `delete_event`, `_apply`, `_connect`,
   `_find_calendar`, `authenticate`) drive a live Outlook desktop session via

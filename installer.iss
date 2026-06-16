@@ -8,7 +8,7 @@
 ;   "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" installer.iss
 
 #define MyAppName "GCal Teams Sync"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.1"
 #define MyAppPublisher "Vinicius Queiroz"
 #define MyAppExeName "GCalSync.exe"
 
