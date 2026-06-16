@@ -11,12 +11,13 @@ Features:
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import threading
 import tkinter as tk
 from pathlib import Path
-from tkinter import messagebox, scrolledtext, simpledialog
+from tkinter import filedialog, messagebox, scrolledtext, simpledialog
 
 import pystray
 from PIL import Image, ImageDraw
@@ -106,7 +107,12 @@ def _ms_status() -> tuple[bool, str]:
 
     Never accesses SmtpAddress, CurrentUser, or any address-book property -
     all of which trigger the Outlook Object Model Guard security popup.
+
+    Runs on a worker thread, so COM must be initialized on this thread first.
+    Without CoInitialize, Dispatch fails with CO_E_NOTINITIALIZED (-2147221008).
     """
+    import pythoncom
+    pythoncom.CoInitialize()
     try:
         import win32com.client
         app = win32com.client.Dispatch("Outlook.Application")
@@ -134,6 +140,8 @@ def _ms_status() -> tuple[bool, str]:
         return True, target or "Connected"
     except Exception as e:
         return False, f"Disconnected ({str(e)[:40]})"
+    finally:
+        pythoncom.CoUninitialize()
 
 
 # ── Helpers: last sync ────────────────────────────────────────────────────────
@@ -287,6 +295,11 @@ class Monitor:
         self.lbl_ms.pack(side="left", padx=(4, 0))
         _btn(rm, "Reconfigure", self._reconfig_ms).pack(side="right")
 
+        # Outlook requirement note
+        _label(frm_acc,
+               "Outlook for Windows desktop must be installed and signed in.",
+               fg=SURF, font=("Segoe UI", 8)).pack(anchor="w", pady=(2, 0))
+
         # ── Sync ──────────────────────────────────────────────────────────────
         frm_sync = tk.LabelFrame(self.root, text="  Sync  ",
             font=("Segoe UI", 9), bg=BG, fg=FG2, bd=1, relief="groove",
@@ -356,6 +369,15 @@ class Monitor:
         )
         self.btn_log.pack(side="left")
 
+        self.btn_export = tk.Button(
+            frm_btns, text="  Export log  ",
+            font=("Segoe UI", 9),
+            bg=BG3, fg=FG, activebackground=BG2,
+            relief="flat", padx=14, pady=7, cursor="hand2",
+            command=self._export_log,
+        )
+        self.btn_export.pack(side="left", padx=(8, 0))
+
         # ── Log ───────────────────────────────────────────────────────────────
         self.frm_log = tk.Frame(self.root, bg=BG)
         self.txt_log = scrolledtext.ScrolledText(
@@ -382,16 +404,20 @@ class Monitor:
 
     def _load_google(self):
         ok, label = _google_status()
+        text = label if ok else "Offline"
         self.root.after(0, lambda: (
             self.dot_g.configure(fg=GREEN if ok else RED),
-            self.lbl_google.configure(text=f"  {label}"),
+            self.lbl_google.configure(text=f"  {text}"),
         ))
 
     def _load_ms(self):
         ok, label = _ms_status()
+        # When not reachable, show a plain "Offline" instead of the raw COM error.
+        # The detail stays available through the log and the Export log button.
+        text = label if ok else "Offline"
         self.root.after(0, lambda: (
             self.dot_m.configure(fg=GREEN if ok else RED),
-            self.lbl_ms.configure(text=f"  {label}"),
+            self.lbl_ms.configure(text=f"  {text}"),
         ))
 
     def _refresh_sync_labels(self):
@@ -526,6 +552,25 @@ class Monitor:
         self.txt_log.insert("end", text)
         self.txt_log.see("end")
         self.txt_log.configure(state="disabled")
+
+    def _export_log(self):
+        if not LOG_FILE.exists():
+            messagebox.showinfo(
+                "Export log", "There is no log file yet.", parent=self.root)
+            return
+        dest = filedialog.asksaveasfilename(
+            parent=self.root, title="Export log",
+            defaultextension=".log", initialfile="gcalsync-sync.log",
+            filetypes=[("Log file", "*.log"), ("All files", "*.*")],
+        )
+        if not dest:
+            return
+        try:
+            shutil.copyfile(LOG_FILE, dest)
+            messagebox.showinfo(
+                "Export log", f"Log saved to:\n{dest}", parent=self.root)
+        except Exception as e:
+            messagebox.showerror("Export log", str(e), parent=self.root)
 
     # ── System tray ───────────────────────────────────────────────────────────
     def _on_close(self):
