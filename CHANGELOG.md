@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-06-16
+
+### Added
+
+- The window, taskbar, and tray now use the application icon (bundled with the
+  build), not the default Python/tk icon.
+- The official release installer is turnkey: the OAuth client is written from a
+  repository secret at build time and bundled, so a user only logs in with their
+  own Google account. The credential is never committed to the repository.
+- Troubleshooting section in the README for the Outlook programmatic-access
+  prompt and the `invalid_client` OAuth error.
+
+### Changed
+
+- The duplicate-recovery lookup scans the calendar once per run and reads the
+  body only of our own `[GCal]` events, instead of a full scan per event. This
+  lowers Outlook object-model access. Note: it does not remove the Outlook
+  programmatic-access prompt, which is driven by the machine's antivirus status,
+  not by this app (see Troubleshooting).
+- "Sharing with Others" in the README now documents the secret-based bundling
+  and the trade-offs of distributing a Desktop OAuth client.
+
 ## [1.0.2] - 2026-06-16
 
 ### Fixed
@@ -60,7 +82,8 @@ First public release.
 - Duplicate-event recovery tool for cleaning up events left behind by an
   interrupted or repeated sync.
 
-[Unreleased]: https://github.com/vinicq/gcal-to-outlook/compare/v1.0.2...HEAD
+[Unreleased]: https://github.com/vinicq/gcal-to-outlook/compare/v1.0.3...HEAD
+[1.0.3]: https://github.com/vinicq/gcal-to-outlook/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/vinicq/gcal-to-outlook/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/vinicq/gcal-to-outlook/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/vinicq/gcal-to-outlook/releases/tag/v1.0.0

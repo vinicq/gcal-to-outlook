@@ -63,7 +63,7 @@ The application ships as a Windows installer. The `.exe` is not stored in the re
 4. After setup completes, the monitor window opens. The status panel shows your connected accounts, last sync time, and sync results. Use "Sync now" to trigger a manual cycle at any time.
 5. Tick **"Start automatically when Windows starts"** in the monitor to run the sync silently in the background on every login. Untick it to stop autostart.
 
-> The installer does not bundle `google_credentials.json` (it identifies your own Google Cloud project). Ship that file alongside the installer, or place it next to the installed `GCalSync.exe`, before the first Google login. See [Sharing with Others](#sharing-with-others).
+> The official release installer comes ready to use: it carries the OAuth client of this project, so you only log in with your own Google account. That client identifies the project, not any user data, and your access token is generated locally and never shared. If you build from a fork instead, supply your own credential (see [Sharing with Others](#sharing-with-others)).
 
 ### Uninstall
 
@@ -193,15 +193,63 @@ Do not commit or distribute `google_credentials.json`, `config.json`, `google_to
 
 ## Sharing with Others
 
-To distribute this to other people, share one `google_credentials.json` from a single Google Cloud project.
+One Google Cloud project's OAuth client serves every user. Each person logs in
+with their own Google account, and their access token stays on their own machine.
+The shared client identifies the project, not any user's data.
 
-1. Create a Google Cloud project, enable the Calendar API, and create an OAuth Desktop app credential.
-2. Download the resulting `google_credentials.json` and include it with `GCalSync.exe` when sharing.
-3. Each recipient double-clicks `GCalSync.exe` and logs in with their own Google account in the browser. The credentials file identifies your Cloud project; it is not a secret. The user's personal access token is generated locally and never shared.
+How the credential reaches the build:
 
-By default, Google limits OAuth apps in test mode to 100 authorized users. If you need to share with more people, publish the app in Google Cloud Console (OAuth consent screen - set to "External" and click "Publish App"). No review is required for apps that only request Calendar read access.
+- The official release installer bundles it. The release workflow writes
+  `google_credentials.json` from a repository secret (`GOOGLE_CREDENTIALS_JSON`)
+  at build time. The file is never committed to the repository, which keeps it
+  out of GitHub secret scanning and avoids automatic revocation.
+- Building from a fork: create your own Google Cloud project, enable the Calendar
+  API, create an OAuth **Desktop app** credential, and either add it as the same
+  repository secret or drop `google_credentials.json` next to `GCalSync.exe`
+  before the first login.
 
-Microsoft side does not need any shared credential in COM mode - the sync writes directly into the locally installed Outlook, which is already authenticated through the user's existing Windows session.
+A note on exposure: an OAuth Desktop client secret cannot be kept confidential in
+a distributed app, and Google's model does not rely on it being secret. Still, do
+not commit it to source. A leaked client lets others consume your project's API
+quota and show your project name on the consent screen, and GitHub may report it
+to Google for revocation.
+
+Google limits an unverified app to 100 authorized users in test mode. To go
+beyond that, publish the OAuth consent screen in the Google Cloud Console.
+
+The Microsoft side needs no shared credential in COM mode. The sync writes into
+the locally installed Outlook, already authenticated through the user's Windows
+session.
+
+---
+
+## Troubleshooting
+
+### Outlook popup: "A program is trying to access email address information"
+
+Outlook shows this prompt (with "Allow access for 1/5/10 minutes") when a program
+automates Outlook **and** Windows reports that your antivirus is off, expired, or
+not reporting its status. It is an Outlook security setting, not a bug in this
+app, and the app does not read any address or contact data. Two ways to stop it:
+
+1. **Turn the warning off in Outlook (one time).** Close Outlook, reopen it as
+   Administrator (right-click the Outlook shortcut, "Run as administrator"), then
+   go to File -> Options -> Trust Center -> Trust Center Settings -> Programmatic
+   Access and choose "Never warn me about suspicious activity". Restart Outlook
+   normally. The option is greyed out unless Outlook was started as Administrator.
+2. **Fix the antivirus status.** Make sure one antivirus is active and up to date
+   in Windows Security. When Windows reports a healthy antivirus, Outlook stops
+   prompting on its own.
+
+Code-signing the executable does not remove this prompt: Outlook's check is about
+antivirus health and trusted Outlook add-ins, not the program's signature.
+
+### Sync fails with "invalid_client: The provided client secret is invalid"
+
+The OAuth client secret in `google_credentials.json` was reset or revoked in the
+Google Cloud Console. Generate a new secret for the Desktop OAuth client, download
+the updated `google_credentials.json`, delete `google_token.json`, and log in
+again.
 
 ---
 

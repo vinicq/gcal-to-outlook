@@ -35,6 +35,8 @@ jobs:
           --onefile
           --name GCalSync
           --icon ${{ github.workspace }}\assets\icon.ico
+          --add-data ${{ github.workspace }}\assets\icon.ico;assets
+          --add-data ${{ github.workspace }}\assets\icon.png;assets
           --distpath .
           --workpath build\work
           --specpath build
@@ -50,6 +52,22 @@ jobs:
           --noconfirm
           --clean
           src\app.py
+
+      - name: Bundle Google OAuth client
+        # Writes google_credentials.json from the repo secret so the installer is
+        # turnkey. The secret is never in source; secret scanning does not fire.
+        # If the secret is unset (e.g. a fork), the file is skipped and the
+        # installer is built clean.
+        env:
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+        shell: pwsh
+        run: |
+          if ($env:GOOGLE_CREDENTIALS_JSON) {
+            [IO.File]::WriteAllText("$env:GITHUB_WORKSPACE\google_credentials.json", $env:GOOGLE_CREDENTIALS_JSON)
+            Write-Host "Bundled google_credentials.json from secret."
+          } else {
+            Write-Host "No GOOGLE_CREDENTIALS_JSON secret; building a clean installer."
+          }
 
       - name: Install Inno Setup
         # ISCC.exe is placed on PATH by the Chocolatey package.

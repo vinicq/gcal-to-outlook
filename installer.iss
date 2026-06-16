@@ -8,7 +8,7 @@
 ;   "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" installer.iss
 
 #define MyAppName "GCal Teams Sync"
-#define MyAppVersion "1.0.2"
+#define MyAppVersion "1.0.3"
 #define MyAppPublisher "Vinicius Queiroz"
 #define MyAppExeName "GCalSync.exe"
 
@@ -46,6 +46,10 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "GCalSync.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion isreadme
 Source: "LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+; OAuth client of the project. Not in the repo; the release workflow writes it
+; from the GOOGLE_CREDENTIALS_JSON secret before building. Skipped if absent
+; (a fork building without the secret produces a clean installer).
+Source: "google_credentials.json"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

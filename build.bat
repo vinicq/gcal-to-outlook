@@ -36,6 +36,8 @@ echo [2/3] Building GCalSync.exe...
     --onefile ^
     --name GCalSync ^
     --icon "%~dp0assets\icon.ico" ^
+    --add-data "%~dp0assets\icon.ico;assets" ^
+    --add-data "%~dp0assets\icon.png;assets" ^
     --distpath . ^
     --workpath build\work ^
     --specpath build ^

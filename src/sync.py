@@ -68,7 +68,8 @@ def build_clients(cfg):
     ms_mode = cfg.get("microsoft", {}).get("mode", "graph")
     if ms_mode == "com":
         m = OutlookComClient(
-            outlook_account=cfg.get("microsoft", {}).get("outlook_account", "")
+            outlook_account=cfg.get("microsoft", {}).get("outlook_account", ""),
+            tag_prefix=cfg.get("sync", {}).get("tag_prefix", ""),
         )
     else:
         m = MicrosoftClient(

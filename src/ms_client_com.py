@@ -11,6 +11,7 @@ Requires:
 Interface identical to MicrosoftClient for transparent substitution.
 """
 
+import re
 from datetime import datetime
 from datetime import timezone as stdlib_tz
 
@@ -18,6 +19,8 @@ import win32com.client
 
 OL_APPOINTMENT_ITEM = 1
 OL_FOLDER_CALENDAR = 9
+
+_SYNC_ID_RE = re.compile(r"\[sync-id:\s*([^\]]+)\]")
 
 
 class OutlookComClient:
@@ -31,11 +34,13 @@ class OutlookComClient:
                          If None, uses the first Exchange mailbox found.
     """
 
-    def __init__(self, outlook_account: str | None = None):
+    def __init__(self, outlook_account: str | None = None, tag_prefix: str = ""):
         self._app = None
         self._ns = None
         self._calendar = None
         self._account_filter = (outlook_account or "").strip().lower()
+        self._tag_prefix = tag_prefix or ""
+        self._sync_index: dict[str, str] | None = None  # lazy: sync_id -> EntryID
 
     def _connect(self):
         if self._app is not None:
@@ -133,30 +138,45 @@ class OutlookComClient:
         except Exception:
             pass  # already deleted or invalid ID
 
-    def find_by_sync_id(self, google_id: str) -> str | None:
-        """Return the EntryID of an event previously created for this Google id.
+    def _build_sync_index(self) -> dict[str, str]:
+        """Scan the calendar ONCE and map every [sync-id] to its EntryID.
 
-        Matches the '[sync-id: <google_id>]' marker that _apply writes into the
-        body. Lets the sync recover its own events when the local mapping DB is
-        missing or reset, so a lost DB does not cause duplicate creation.
-        Returns None if no matching event exists.
+        Reads the body only of our own tagged events (Subject contains the tag
+        prefix), so unrelated meeting items are never touched. Scanning once per
+        client instead of once per event keeps Outlook object-model access low,
+        which matters for the programmatic-access security prompt.
         """
-        self._connect()
-        marker = f"[sync-id: {google_id}]"
+        index: dict[str, str] = {}
         try:
             items = self._calendar.Items
             item = items.GetFirst()
             while item is not None:
                 try:
-                    body = getattr(item, "Body", "") or ""
-                    if marker in body:
-                        return item.EntryID
+                    subject = getattr(item, "Subject", "") or ""
+                    if not self._tag_prefix or self._tag_prefix in subject:
+                        body = getattr(item, "Body", "") or ""
+                        m = _SYNC_ID_RE.search(body)
+                        if m:
+                            index[m.group(1).strip()] = item.EntryID
                 except Exception:
                     pass
                 item = items.GetNext()
         except Exception:
             pass
-        return None
+        return index
+
+    def find_by_sync_id(self, google_id: str) -> str | None:
+        """Return the EntryID of an event previously created for this Google id.
+
+        Matches the '[sync-id: <google_id>]' marker that _apply writes into the
+        body, so the sync can recover its own events when the local mapping DB is
+        missing or reset and avoid creating duplicates. The index is built once
+        and cached for the lifetime of this client. Returns None if not found.
+        """
+        self._connect()
+        if self._sync_index is None:
+            self._sync_index = self._build_sync_index()
+        return self._sync_index.get(google_id)
 
     def _apply(self, appt, payload: dict):
         appt.Subject = payload.get("subject", "(no title)")
