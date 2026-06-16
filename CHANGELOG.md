@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-06-16
+
+### Fixed
+
+- Setup wizard crashed at the login step in the installed build. It tried to run
+  a separate `sync.exe` that the single-executable build never produces. The
+  wizard now re-invokes `GCalSync.exe` with the mode argument, and the login
+  child runs without grabbing the wizard's console window. Covered by a
+  regression test on the command resolver.
+
 ## [1.0.0] - 2026-06-16
 
 First public release.
@@ -31,5 +41,6 @@ First public release.
 - Duplicate-event recovery tool for cleaning up events left behind by an
   interrupted or repeated sync.
 
-[Unreleased]: https://github.com/vinicq/gcal-to-outlook/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/vinicq/gcal-to-outlook/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/vinicq/gcal-to-outlook/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/vinicq/gcal-to-outlook/releases/tag/v1.0.0
