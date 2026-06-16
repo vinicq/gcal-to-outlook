@@ -148,15 +148,25 @@ Check the top-right corner again. If a **"New Outlook"** toggle is on, turn it
 2. Run it. Windows SmartScreen may warn about an unrecognized publisher: click
    **More info → Run anyway**. It installs per user, no admin needed.
 
-## Step 6 - First run and first sync
+## Step 6 - First run: what the wizard asks
 
-1. The setup wizard opens. It detects Outlook automatically and selects
-   **Outlook COM** mode.
-2. It asks which Outlook account to sync into. Enter your Microsoft 365 address
-   (the one from Step 2).
-3. The browser opens once to sign in to **Google**. Approve calendar access.
-4. The first sync runs. It can take 1 to 2 minutes. Outlook must be open (or it
-   opens automatically).
+The first time you run the app, a setup wizard opens in a terminal window. It is
+quick. Follow these prompts:
+
+1. **"Press Enter to begin"** - press Enter.
+2. The wizard checks Outlook and selects **Outlook COM** mode automatically. It
+   does not ask which account at this point.
+3. **"Press Enter to open the browser"** - press Enter, then in the browser
+   **sign in to your Google account and click Approve** (read access to your
+   calendar). No passwords are stored.
+4. The first sync runs. It can take 1 to 2 minutes.
+5. **"Schedule auto-start? [y/n]"** - type **y** so the sync starts automatically
+   with Windows. You can also change this later in the monitor window.
+
+> If you have more than one Microsoft account in Outlook (for example a personal
+> one and the institutional one), the app may pick the wrong calendar. Open the
+> monitor window, click **Reconfigure** next to **Outlook / Teams**, and type your
+> institutional address (`you@your-domain`) so it syncs into the right calendar.
 
 ## Step 7 - Verify in Teams
 
