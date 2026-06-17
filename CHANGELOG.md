@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-06-17
+
+### Fixed
+
+- No more black console window. The app is now built as a windowed (GUI)
+  program, so closing a stray terminal can no longer kill the app or remove the
+  tray icon. The setup wizard and the dedup tool still open a console on demand,
+  since they are interactive. The headless sync logs to `sync.log` and no longer
+  needs a console at all.
+
 ## [1.0.4] - 2026-06-17
 
 ### Fixed
@@ -104,7 +114,8 @@ First public release.
 - Duplicate-event recovery tool for cleaning up events left behind by an
   interrupted or repeated sync.
 
-[Unreleased]: https://github.com/vinicq/gcal-to-outlook/compare/v1.0.4...HEAD
+[Unreleased]: https://github.com/vinicq/gcal-to-outlook/compare/v1.0.5...HEAD
+[1.0.5]: https://github.com/vinicq/gcal-to-outlook/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/vinicq/gcal-to-outlook/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/vinicq/gcal-to-outlook/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/vinicq/gcal-to-outlook/compare/v1.0.1...v1.0.2

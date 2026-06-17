@@ -5,7 +5,7 @@ Surfaced in the monitor UI and compared against the latest GitHub release to
 tell the user when an update is available.
 """
 
-__version__ = "1.0.4"
+__version__ = "1.0.5"
 
 # Public repo used for the "new version available" check.
 GITHUB_REPO = "vinicq/gcal-to-outlook"

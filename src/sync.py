@@ -34,13 +34,16 @@ CONFIG_PATH = ROOT_DIR / "config.json"
 DB_PATH = ROOT_DIR / "sync_state.db"
 LOG_PATH = ROOT_DIR / "sync.log"
 
+# Always log to the file. Also echo to stdout when it is a real stream: in a
+# windowed (no-console) build sys.stdout may be None or redirected to the null
+# device, in which case the file handler alone carries the log.
+_log_handlers = [logging.FileHandler(LOG_PATH, encoding="utf-8")]
+if sys.stdout is not None:
+    _log_handlers.append(logging.StreamHandler(sys.stdout))
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
-    handlers=[
-        logging.FileHandler(LOG_PATH, encoding="utf-8"),
-        logging.StreamHandler(sys.stdout),
-    ],
+    handlers=_log_handlers,
 )
 log = logging.getLogger("sync")
 

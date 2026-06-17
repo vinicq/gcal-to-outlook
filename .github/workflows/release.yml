@@ -33,6 +33,7 @@ jobs:
         run: >
           python -m PyInstaller
           --onefile
+          --noconsole
           --name GCalSync
           --icon ${{ github.workspace }}\assets\icon.ico
           --add-data "${{ github.workspace }}\assets\icon.ico;assets"
