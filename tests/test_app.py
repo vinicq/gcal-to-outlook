@@ -136,13 +136,16 @@ def test_default_mode_second_instance_skips_wizard_and_monitor(monkeypatch):
     monkeypatch.setattr(
         setup_wizard, "main", lambda: wizard_ran.__setitem__("n", 1))
     import monitor
-    monkeypatch.setattr(monitor, "Monitor", lambda **k: _FakeMonitor())
+    fake = _FakeMonitor()
+    monkeypatch.setattr(monitor, "Monitor", lambda **k: fake)
     monkeypatch.setattr(sys, "argv", ["app"])
 
     app.main()
 
-    # A second launch must not re-run setup while the first instance is up.
+    # A second launch must not re-run setup nor open a window while the first
+    # instance is up.
     assert wizard_ran["n"] == 0
+    assert fake.ran is False
 
 
 # ── Guarantee 2: silent-mode exception -> log + exit 1, no traceback window ───

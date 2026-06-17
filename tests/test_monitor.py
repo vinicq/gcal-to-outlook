@@ -234,3 +234,72 @@ def test_autostart_disable_removes_the_vbs(monkeypatch, tmp_path):
     assert monitor._autostart_enabled() is True
     monitor._autostart_set(False)
     assert monitor._autostart_enabled() is False
+
+
+# ── _sync_done: reaction to the cycle subprocess exit code ───────────────────
+# These run the real _sync_done logic. We bypass Tk via Monitor.__new__ (so no
+# display is needed, unlike constructing Monitor) and inject widget/tray doubles
+# on the bare instance. The spec is: a non-zero exit code marks the result label
+# red and fires a tray balloon; a zero exit clears the styling back to green and
+# never notifies.
+class _FakeWidget:
+    """Records the last configure() kwargs so assertions read final state."""
+
+    def __init__(self):
+        self.config = {}
+
+    def configure(self, **kw):
+        self.config.update(kw)
+
+
+class _FakeTray:
+    def __init__(self):
+        self.notes = []
+
+    def notify(self, message, title):
+        self.notes.append((message, title))
+
+
+def _bare_monitor_for_sync_done(tray):
+    m = monitor.Monitor.__new__(monitor.Monitor)  # no __init__, no Tk
+    m._sync_running = True
+    m.btn_sync = _FakeWidget()
+    m.lbl_result = _FakeWidget()
+    m._tray = tray
+    m._log_visible = False
+    # Collaborators _sync_done calls but that are out of scope here.
+    m._refresh_sync_labels = lambda: None
+    m._update_log = lambda: None
+    return m
+
+
+def test_sync_done_failure_marks_result_red_and_notifies():
+    tray = _FakeTray()
+    m = _bare_monitor_for_sync_done(tray)
+
+    m._sync_done(1)  # subprocess exited non-zero -> failed cycle
+
+    assert m.lbl_result.config.get("fg") == monitor.RED
+    assert "failed" in m.lbl_result.config.get("text", "").lower()
+    assert len(tray.notes) == 1
+    assert m._sync_running is False
+
+
+def test_sync_done_success_clears_to_green_and_does_not_notify():
+    tray = _FakeTray()
+    m = _bare_monitor_for_sync_done(tray)
+
+    m._sync_done(0)  # clean cycle
+
+    assert m.lbl_result.config.get("fg") == monitor.GREEN
+    assert tray.notes == []
+
+
+def test_sync_done_timeout_code_is_treated_as_failure_without_tray():
+    # rc == -1 is the timeout/exception path from _sync_now; with the window
+    # open (no tray) it must still mark red and not blow up on a None tray.
+    m = _bare_monitor_for_sync_done(None)
+
+    m._sync_done(-1)
+
+    assert m.lbl_result.config.get("fg") == monitor.RED
