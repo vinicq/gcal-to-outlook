@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-06-17
+
+### Fixed
+
+- Autostart now opens the app to the system tray instead of starting it
+  invisibly. Before, "Start with Windows" launched the headless sync loop, which
+  synced but showed no window or tray icon, so it looked like nothing started. A
+  new `tray` mode shows the tray icon and runs the sync loop in one process.
+- Autostart settles on a single mechanism (a launcher in the Windows Startup
+  folder). The setup wizard no longer registers a separate scheduled task, and
+  enabling autostart removes any leftover task from older installs, so two
+  launchers can no longer both fire at login.
+- The background sync loop reschedules itself even if a cycle fails, so a single
+  failed sync can no longer stop it silently.
+
+### Added
+
+- The window shows the installed version and checks GitHub for a newer release
+  on startup. When one exists, a clickable "new version available" notice opens
+  the download page. The check is local-only, sends no telemetry, and never
+  blocks the app if it fails.
+
 ## [1.0.3] - 2026-06-16
 
 ### Added
@@ -82,7 +104,8 @@ First public release.
 - Duplicate-event recovery tool for cleaning up events left behind by an
   interrupted or repeated sync.
 
-[Unreleased]: https://github.com/vinicq/gcal-to-outlook/compare/v1.0.3...HEAD
+[Unreleased]: https://github.com/vinicq/gcal-to-outlook/compare/v1.0.4...HEAD
+[1.0.4]: https://github.com/vinicq/gcal-to-outlook/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/vinicq/gcal-to-outlook/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/vinicq/gcal-to-outlook/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/vinicq/gcal-to-outlook/compare/v1.0.0...v1.0.1
