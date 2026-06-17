@@ -16,11 +16,15 @@ import subprocess
 import sys
 import threading
 import tkinter as tk
+import urllib.request
+import webbrowser
 from pathlib import Path
 from tkinter import filedialog, messagebox, scrolledtext, simpledialog
 
 import pystray
 from PIL import Image, ImageDraw
+
+from _version import GITHUB_REPO, RELEASES_URL, __version__
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 if getattr(sys, "frozen", False):
@@ -188,15 +192,37 @@ def _autostart_enabled() -> bool:
     return _STARTUP_VBS.exists()
 
 
+def _remove_scheduled_task():
+    """Delete the legacy ONLOGON task an older version (or the setup wizard) may
+    have created. Silent if absent. The Startup-folder VBS is the single source
+    of autostart now; this keeps the two mechanisms from both firing at login."""
+    try:
+        subprocess.run(
+            ["schtasks", "/delete", "/tn", "GCal-Teams-Sync", "/f"],
+            capture_output=True, timeout=5,
+        )
+    except Exception:
+        pass
+
+
 def _autostart_set(enable: bool):
     if enable:
-        # Creates VBS in the Windows Startup folder (no admin required)
+        # Creates VBS in the Windows Startup folder (no admin required).
+        # Launches the tray monitor (mode "tray"): it shows the tray icon AND
+        # runs the sync loop itself, so one launch covers both. The old "run"
+        # mode synced but was invisible, which read as "it did not start".
+        # Also drop any legacy scheduled task so only one launcher fires.
+        _remove_scheduled_task()
         if getattr(sys, "frozen", False):
             exe = str(Path(sys.executable))
-            cmd_line = f'Chr(34) & "{exe}" & Chr(34) & " run"'
+            cmd_line = f'Chr(34) & "{exe}" & Chr(34) & " tray"'
         else:
-            vbs_path = ROOT_DIR / "run-oculto.vbs"
-            cmd_line = f'"wscript.exe " & Chr(34) & "{vbs_path}" & Chr(34)'
+            pyw = ROOT_DIR / ".venv" / "Scripts" / "pythonw.exe"
+            app = ROOT_DIR / "src" / "app.py"
+            cmd_line = (
+                f'Chr(34) & "{pyw}" & Chr(34) & " " & '
+                f'Chr(34) & "{app}" & Chr(34) & " tray"'
+            )
         content = (
             'Dim shell\n'
             'Set shell = CreateObject("WScript.Shell")\n'
@@ -207,11 +233,52 @@ def _autostart_set(enable: bool):
         _STARTUP_VBS.write_text(content, encoding="utf-8")
     else:
         _STARTUP_VBS.unlink(missing_ok=True)
-        # Remove scheduled task if it exists
-        subprocess.run(
-            ["schtasks", "/delete", "/tn", "GCal-Teams-Sync", "/f"],
-            capture_output=True, timeout=5,
-        )
+        _remove_scheduled_task()
+
+
+# ── Helpers: update check ───────────────────────────────────────────────────
+def _parse_version(tag: str) -> tuple:
+    """'v1.2.3' / '1.2.3' -> (1, 2, 3). Non-numeric parts are dropped, so a
+    malformed tag compares as lower than any real release rather than crashing."""
+    nums = []
+    for part in tag.lstrip("vV").split("."):
+        digits = "".join(c for c in part if c.isdigit())
+        if not digits:
+            break
+        nums.append(int(digits))
+    return tuple(nums)
+
+
+def _latest_release() -> str | None:
+    """Return the latest release tag (e.g. 'v1.0.5') from GitHub, or None on any
+    failure. Network/parse errors are swallowed: a missed check must never break
+    the app or block the UI. Uses the public API, no token, no telemetry."""
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+    req = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": f"GCalSync/{__version__}",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        tag = data.get("tag_name")
+        return tag or None
+    except Exception:
+        return None
+
+
+def _update_available() -> str | None:
+    """Return the newer release tag if GitHub has one above the running version,
+    else None (up to date, or the check could not run)."""
+    tag = _latest_release()
+    if not tag:
+        return None
+    if _parse_version(tag) > _parse_version(__version__):
+        return tag
+    return None
 
 
 # ── Tray icon ─────────────────────────────────────────────────────────────────
@@ -254,7 +321,7 @@ def _btn(parent, text, cmd, color=BG3, fg=FG, width=None):
 
 # ── Main monitor ──────────────────────────────────────────────────────────────
 class Monitor:
-    def __init__(self):
+    def __init__(self, start_hidden: bool = False):
         self._sync_running = False
         self._log_visible  = False
         self._tray: pystray.Icon | None = None
@@ -268,6 +335,25 @@ class Monitor:
         self._build_ui()
         self._refresh_all()
         self.root.after(30_000, self._periodic_refresh)
+
+        # Keep the Startup launcher pointing at the current command. Older
+        # installs wrote a VBS that launched the headless "run" loop (no window,
+        # no tray); refreshing it here migrates them to the visible tray on the
+        # next launch without the user having to re-toggle the checkbox.
+        if _autostart_enabled():
+            try:
+                _autostart_set(True)
+            except Exception:
+                pass
+
+        # When launched by the Startup folder we open straight to the tray so
+        # login is not interrupted by a window. This process also drives the
+        # sync loop (spawning one sync cycle per interval), so a single launch
+        # gives both the visible icon and background syncing.
+        if start_hidden:
+            self.root.after(0, self._hide_to_tray)
+        self._schedule_background_sync(initial=True)
+        self._check_update_async()
 
     def _set_window_icon(self):
         """Set the title-bar and taskbar icon from the bundled icon."""
@@ -295,6 +381,14 @@ class Monitor:
         hdr.pack(fill="x")
         _label(hdr, "GCal  →  Teams Sync",
                font=("Segoe UI", 13, "bold"), fg=FG, bg=BG2).pack()
+        _label(hdr, f"v{__version__}",
+               font=("Segoe UI", 8), fg=SURF, bg=BG2).pack()
+        # Hidden until the update check finds a newer release. Clicking opens
+        # the releases page in the browser.
+        self.lbl_update = tk.Label(
+            hdr, text="", font=("Segoe UI", 8, "underline"),
+            fg=YELL, bg=BG2, cursor="hand2")
+        self.lbl_update.bind("<Button-1>", lambda _e: webbrowser.open(RELEASES_URL))
 
         # ── Accounts ─────────────────────────────────────────────────────────
         frm_acc = tk.LabelFrame(self.root, text="  Accounts  ",
@@ -428,6 +522,65 @@ class Monitor:
         self._refresh_sync_labels()
         self._refresh_autostart()
         self.root.after(30_000, self._periodic_refresh)
+
+    # ── Background sync loop ──────────────────────────────────────────────────
+    def _hide_to_tray(self):
+        """Start minimized: withdraw the window and show only the tray icon."""
+        self.root.withdraw()
+        if self._tray is None:
+            self._start_tray()
+
+    def _schedule_background_sync(self, initial: bool = False):
+        """Drive a sync cycle on the configured interval from the tray process.
+
+        Replaces the separate headless "run" loop: the visible tray process now
+        owns the cadence, so a single launch gives both the icon and background
+        syncing. Uses Tk's after() (single-threaded scheduler); each cycle is a
+        short-lived `once` subprocess spawned by _sync_now (process isolation
+        keeps COM/pythoncom out of the UI thread). The child logs to sync.log
+        regardless of stdout capture, so per-cycle errors stay diagnosable.
+        """
+        cfg = _load_cfg()
+        secs = int(cfg.get("sync", {}).get("poll_interval_seconds", 300))
+        # Floor at 60s; cap at 24h so the ms value stays within Tk after()'s
+        # signed 32-bit limit (~24.8 days) even with a bad config value.
+        secs = min(max(60, secs), 86_400)
+        # On startup, kick off a first sync soon after the UI/auth settle.
+        delay = 5_000 if initial else secs * 1000
+        self.root.after(delay, self._background_tick)
+
+    def _background_tick(self):
+        # Reschedule in a finally so a failure in one cycle can never kill the
+        # loop silently - that would recreate the "it stopped syncing" symptom.
+        try:
+            if not self._sync_running:
+                self._sync_now()
+        finally:
+            self._schedule_background_sync()
+
+    # ── Update check ──────────────────────────────────────────────────────────
+    def _check_update_async(self):
+        """Query GitHub for a newer release in the background and, if found,
+        surface a clickable label (and a tray balloon when minimized). Runs once
+        per launch; the network call is off the UI thread."""
+        def _run():
+            tag = _update_available()
+            if tag:
+                self.root.after(0, lambda: self._show_update(tag))
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    def _show_update(self, tag: str):
+        self.lbl_update.configure(text=f"Nova versão {tag} disponível - clique para baixar")
+        self.lbl_update.pack(pady=(4, 0))
+        if self._tray is not None:
+            try:
+                self._tray.notify(
+                    f"Versão {tag} disponível. Abra o painel para baixar.",
+                    "GCal → Teams Sync",
+                )
+            except Exception:
+                pass
 
     def _load_google(self):
         ok, label = _google_status()

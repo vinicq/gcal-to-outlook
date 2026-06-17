@@ -8,7 +8,9 @@
 ;   "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" installer.iss
 
 #define MyAppName "GCal Teams Sync"
-#define MyAppVersion "1.0.3"
+; Keep in sync with __version__ in src\_version.py (the app's update check
+; compares that value against the latest GitHub release tag).
+#define MyAppVersion "1.0.4"
 #define MyAppPublisher "Vinicius Queiroz"
 #define MyAppExeName "GCalSync.exe"
 

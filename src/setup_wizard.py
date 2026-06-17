@@ -542,26 +542,21 @@ def step_schedule():
     resp = ask("Schedule auto-start? [y/n]").lower()
 
     if resp not in ("s", "sim", "y", "yes"):
-        info("OK. Use option [3] in SYNC.bat whenever you want to schedule it.")
+        info("OK. You can enable it later from the app's Autostart checkbox.")
         return
 
-    vbs = ROOT / "run-oculto.vbs"
-    result = subprocess.run(
-        ["schtasks", "/create",
-         "/tn", "GCal-Teams-Sync",
-         "/tr", f'wscript.exe "{vbs}"',
-         "/sc", "ONLOGON",
-         "/ru", os.environ.get("USERNAME", ""),
-         "/f"],
-        capture_output=True, text=True,
-    )
-    if result.returncode == 0:
-        ok("Task registered in Windows Task Scheduler.")
-        info("The synchronizer will start automatically on each Windows login.")
-        info("To remove: use option [4] in SYNC.bat.")
-    else:
-        warn("Could not register the task automatically.")
-        warn("Open SYNC.bat as Administrator and use option [3].")
+    # Use the same launcher the app's checkbox uses: a VBS in the Windows
+    # Startup folder that opens the tray ("tray" mode) and syncs in background.
+    # No admin and no scheduled task, so there is a single autostart path.
+    try:
+        from monitor import _autostart_set
+        _autostart_set(True)
+        ok("Autostart enabled (Windows Startup folder).")
+        info("The app will open to the tray and sync automatically on login.")
+        info("To disable: untick Autostart in the app window.")
+    except Exception as e:
+        warn(f"Could not enable autostart automatically: {e}")
+        warn("Enable it later from the app's Autostart checkbox.")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
