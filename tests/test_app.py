@@ -125,16 +125,11 @@ def test_tray_second_instance_does_not_open_monitor(monkeypatch):
     assert constructed["n"] == 0
 
 
-def test_default_mode_second_instance_skips_wizard_and_monitor(monkeypatch):
+def test_default_mode_configured_second_instance_does_not_open_monitor(monkeypatch):
+    # Already configured + gate says "already running": no second window/loop.
     monkeypatch.setattr(
         "single_instance.acquire_single_instance", lambda *a, **k: False)
-    wizard_ran = {"n": 0}
-    monkeypatch.setattr(app, "_setup_done", lambda: False)
-    monkeypatch.setattr(app, "_alloc_console", lambda: None)
-    monkeypatch.setattr(app, "_free_console", lambda: None)
-    import setup_wizard
-    monkeypatch.setattr(
-        setup_wizard, "main", lambda: wizard_ran.__setitem__("n", 1))
+    monkeypatch.setattr(app, "_setup_done", lambda: True)
     import monitor
     fake = _FakeMonitor()
     monkeypatch.setattr(monitor, "Monitor", lambda **k: fake)
@@ -142,10 +137,52 @@ def test_default_mode_second_instance_skips_wizard_and_monitor(monkeypatch):
 
     app.main()
 
-    # A second launch must not re-run setup nor open a window while the first
-    # instance is up.
-    assert wizard_ran["n"] == 0
     assert fake.ran is False
+
+
+# ── First-run handoff: wizard then relaunch (so the console closes) ───────────
+def test_default_first_run_runs_wizard_then_hands_off_not_monitor(monkeypatch):
+    wizard_ran = {"n": 0}
+    relaunched = {"n": 0}
+    monkeypatch.setattr(app, "_setup_done", lambda: False)
+    monkeypatch.setattr(app, "_alloc_console", lambda: None)
+    monkeypatch.setattr(app, "_relaunch_monitor",
+                        lambda: relaunched.__setitem__("n", relaunched["n"] + 1))
+    import setup_wizard
+    monkeypatch.setattr(
+        setup_wizard, "main", lambda: wizard_ran.__setitem__("n", 1))
+    import monitor
+    monitor_built = {"n": 0}
+
+    def _fake_monitor(**k):
+        monitor_built["n"] += 1
+        return _FakeMonitor()
+
+    monkeypatch.setattr(monitor, "Monitor", _fake_monitor)
+    monkeypatch.setattr(sys, "argv", ["app"])
+
+    app.main()
+
+    # The wizard runs, then control hands off to a fresh process; the monitor
+    # must NOT be opened in this (console-owning) process.
+    assert wizard_ran["n"] == 1
+    assert relaunched["n"] == 1
+    assert monitor_built["n"] == 0
+
+
+def test_relaunch_cmd_frozen_reexecs_the_exe(monkeypatch):
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", r"C:\Apps\GCalSync\GCalSync.exe")
+    # Frozen: re-exec the bundled exe with no mode argument (setup is done now).
+    assert app._relaunch_cmd() == [r"C:\Apps\GCalSync\GCalSync.exe"]
+
+
+def test_relaunch_cmd_source_runs_app_py(monkeypatch):
+    monkeypatch.setattr(sys, "frozen", False, raising=False)
+    cmd = app._relaunch_cmd()
+    # Source: a python runner plus the app.py path, nothing else.
+    assert len(cmd) == 2
+    assert cmd[1].endswith("app.py")
 
 
 # ── Guarantee 2: silent-mode exception -> log + exit 1, no traceback window ───

@@ -77,6 +77,34 @@ def _setup_done() -> bool:
     return CONFIG.exists() and GOOGLE_TOKEN.exists()
 
 
+def _relaunch_cmd():
+    """Command to start a fresh monitor process after the first-run wizard.
+    Frozen: re-exec the bundled exe with no mode (setup is now done, so it opens
+    the monitor). Source: run app.py under pythonw (no console) when available."""
+    if getattr(sys, "frozen", False):
+        return [sys.executable]
+    pyw = Path(sys.executable).with_name("pythonw.exe")
+    runner = str(pyw) if pyw.exists() else sys.executable
+    return [runner, str(Path(__file__).resolve())]
+
+
+def _relaunch_monitor():
+    """Hand off to a fresh monitor process and let the caller exit. The wizard
+    allocated a console; FreeConsole alone leaves its window orphaned (Enter
+    does nothing and it never closes), but a process exit tears the console down
+    cleanly. The new process runs with no console."""
+    import subprocess
+    creation = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    try:
+        subprocess.Popen(_relaunch_cmd(), creationflags=creation, close_fds=True)
+    except Exception:
+        # If the handoff fails, open the monitor in-process so the user is not
+        # left with nothing after completing setup.
+        _free_console()
+        from monitor import Monitor
+        Monitor().run()
+
+
 def _guard_stdio():
     """In a windowed build with no console, sys.stdout/stderr are None, so any
     stray print() in the sync path would crash. Point them at the null device.
@@ -137,18 +165,23 @@ def main():
         Monitor(start_hidden=_setup_done()).run()
         return
 
-    # Default mode: wizard if needed (in a temporary console), then monitor.
-    # Gate before the wizard so a second launch never re-runs setup or opens a
-    # second window while one is already up.
-    from single_instance import acquire_single_instance
-    if not acquire_single_instance():
-        return
+    # Default mode: first run goes through the setup wizard in a temporary
+    # console, then hands off to a fresh monitor process (so the console closes);
+    # an already-configured launch opens the monitor directly, gated by the
+    # single-instance mutex.
     if not _setup_done():
         _alloc_console()
         import setup_wizard as _wiz
         _wiz.main()
-        _free_console()  # drop the wizard console before the window opens
+        # Exit this process so its allocated console is torn down; the relaunched
+        # process opens the monitor and acquires the single-instance mutex. The
+        # mutex is intentionally not held here so the relaunch can take it.
+        _relaunch_monitor()
+        return
 
+    from single_instance import acquire_single_instance
+    if not acquire_single_instance():
+        return
     from monitor import Monitor
     Monitor().run()
 
