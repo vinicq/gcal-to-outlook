@@ -18,6 +18,7 @@ Command-line modes (for scripts and autostart):
 """
 
 import ctypes
+import logging
 import os
 import sys
 from pathlib import Path
@@ -92,9 +93,21 @@ def main():
     mode = sys.argv[1].lower() if len(sys.argv) > 1 else ""
 
     # Silent modes: no console, no window. Invoked by autostart/SYNC.bat.
+    # These are also the modes the tray spawns per cycle (SYNC_CMD = [exe, once]),
+    # so they must NOT be gated by the single-instance mutex below.
     if mode in ("run", "once", "login", "reset"):
         import sync as _sync
-        _sync.main()
+        # Without a console, an unhandled exception (e.g. the Outlook COM layer
+        # raising when Outlook itself crashes) would reach the PyInstaller
+        # windowed bootloader and pop a traceback window. Catch it here: log with
+        # traceback to sync.log and exit non-zero instead. SystemExit and
+        # KeyboardInterrupt propagate untouched (load_config's sys.exit, run's
+        # Ctrl+C handling).
+        try:
+            _sync.main()
+        except Exception:
+            logging.getLogger("sync").exception("Fatal error in mode '%s'", mode)
+            sys.exit(1)
         return
 
     # Dedup mode: scan and remove duplicate events (needs console output)
@@ -117,11 +130,19 @@ def main():
     # sync loop. If setup is somehow incomplete, show the window so the user
     # can finish it instead of starting hidden with nothing to act on.
     if mode == "tray":
+        from single_instance import acquire_single_instance
+        if not acquire_single_instance():
+            return  # another tray/panel instance already runs the sync loop
         from monitor import Monitor
         Monitor(start_hidden=_setup_done()).run()
         return
 
     # Default mode: wizard if needed (in a temporary console), then monitor.
+    # Gate before the wizard so a second launch never re-runs setup or opens a
+    # second window while one is already up.
+    from single_instance import acquire_single_instance
+    if not acquire_single_instance():
+        return
     if not _setup_done():
         _alloc_console()
         import setup_wizard as _wiz
