@@ -10,7 +10,7 @@
 #define MyAppName "GCal Teams Sync"
 ; Keep in sync with __version__ in src\_version.py (the app's update check
 ; compares that value against the latest GitHub release tag).
-#define MyAppVersion "1.0.4"
+#define MyAppVersion "1.0.5"
 #define MyAppPublisher "Vinicius Queiroz"
 #define MyAppExeName "GCalSync.exe"
 

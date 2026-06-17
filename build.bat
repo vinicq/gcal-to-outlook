@@ -34,6 +34,7 @@ echo.
 echo [2/3] Building GCalSync.exe...
 .venv\Scripts\pyinstaller ^
     --onefile ^
+    --noconsole ^
     --name GCalSync ^
     --icon "%~dp0assets\icon.ico" ^
     --add-data "%~dp0assets\icon.ico;assets" ^
