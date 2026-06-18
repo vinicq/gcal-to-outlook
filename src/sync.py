@@ -187,7 +187,7 @@ def main():
     # instead of popping an OAuth tab on every interval. Interactive login is the
     # job of the `login` mode above (triggered by the panel's Reconfigure).
     g.authenticate(allow_interactive=False)
-    m.authenticate()
+    m.authenticate(allow_interactive=False)
     store = Store(str(DB_PATH))
 
     if mode == "once":

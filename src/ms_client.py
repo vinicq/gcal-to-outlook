@@ -45,13 +45,23 @@ class MicrosoftClient:
             with open(self.token_cache_file, "w", encoding="utf-8") as f:
                 f.write(cache.serialize())
 
-    def authenticate(self):
+    def authenticate(self, allow_interactive: bool = True):
+        """Acquire a Graph token. allow_interactive=False is for background
+        cycles: with no cached account it raises instead of opening a browser,
+        mirroring the Google client so an unattended sync never pops a login
+        window. Only the `login`/setup paths run the interactive flow."""
         app, cache = self._build_app()
         result = None
         accounts = app.get_accounts()
         if accounts:
             result = app.acquire_token_silent(SCOPES, account=accounts[0])
         if not result:
+            if not allow_interactive:
+                raise RuntimeError(
+                    "Microsoft authorization required and no cached token is "
+                    "available. Open the panel and use Reconfigure (or run "
+                    "'login') to sign in."
+                )
             # Opens the browser and captures the token via a temporary local server
             # (same experience as Google login).
             # Requires http://localhost redirect registered in the Azure app.
