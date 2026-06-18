@@ -182,7 +182,11 @@ def main():
 
     g, m = build_clients(cfg)
     log.info("Authenticating...")
-    g.authenticate()
+    # Background cycles (run/once, spawned by the tray) must never open a browser:
+    # with no usable token this raises and the cycle aborts with a logged error,
+    # instead of popping an OAuth tab on every interval. Interactive login is the
+    # job of the `login` mode above (triggered by the panel's Reconfigure).
+    g.authenticate(allow_interactive=False)
     m.authenticate()
     store = Store(str(DB_PATH))
 
