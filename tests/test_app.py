@@ -185,6 +185,23 @@ def test_relaunch_cmd_source_runs_app_py(monkeypatch):
     assert cmd[1].endswith("app.py")
 
 
+def test_child_env_strips_meipass2(monkeypatch):
+    # A relaunched onefile child must NOT inherit _MEIPASS2: it would reuse the
+    # parent's extracted temp dir, which is deleted when the parent exits,
+    # crashing the child with "Tcl data directory ... not found".
+    monkeypatch.setenv("_MEIPASS2", r"C:\Users\x\AppData\Local\Temp\_MEI31282")
+    monkeypatch.setenv("PATH", "keep-me")
+    env = app._child_env()
+    assert "_MEIPASS2" not in env
+    assert env["PATH"] == "keep-me"
+
+
+def test_child_env_absent_meipass2_is_noop(monkeypatch):
+    monkeypatch.delenv("_MEIPASS2", raising=False)
+    env = app._child_env()
+    assert "_MEIPASS2" not in env
+
+
 # ── Guarantee 2: silent-mode exception -> log + exit 1, no traceback window ───
 def test_silent_mode_exception_exits_with_code_1(monkeypatch):
     import sync

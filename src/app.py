@@ -88,6 +88,19 @@ def _relaunch_cmd():
     return [runner, str(Path(__file__).resolve())]
 
 
+def _child_env():
+    """Environment for a relaunched frozen child, with PyInstaller's _MEIPASS2
+    stripped. In onefile mode the bootloader sets _MEIPASS2 so a re-exec reuses
+    the parent's extracted temp dir; when the child outlives the parent (here it
+    must - the parent exits to tear down its console), that dir is deleted and
+    the child crashes on startup with "Tcl data directory ... not found".
+    Dropping _MEIPASS2 makes the child extract its own copy and own its lifetime.
+    """
+    env = dict(os.environ)
+    env.pop("_MEIPASS2", None)
+    return env
+
+
 def _relaunch_monitor():
     """Hand off to a fresh monitor process and let the caller exit. The wizard
     allocated a console; FreeConsole alone leaves its window orphaned (Enter
@@ -96,7 +109,8 @@ def _relaunch_monitor():
     import subprocess
     creation = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     try:
-        subprocess.Popen(_relaunch_cmd(), creationflags=creation, close_fds=True)
+        subprocess.Popen(_relaunch_cmd(), creationflags=creation,
+                         close_fds=True, env=_child_env())
     except Exception:
         # If the handoff fails, open the monitor in-process so the user is not
         # left with nothing after completing setup.
