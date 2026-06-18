@@ -86,8 +86,12 @@ class OutlookComClient:
 
         return self._ns.GetDefaultFolder(OL_FOLDER_CALENDAR)
 
-    def authenticate(self):
-        """Verifies Outlook access. No browser, no OAuth, no admin required."""
+    def authenticate(self, allow_interactive: bool = True):
+        """Verifies Outlook access. No browser, no OAuth, no admin required.
+
+        allow_interactive is accepted for parity with the Google/Graph clients
+        (the sync layer passes it uniformly) but ignored: COM access never
+        prompts, so there is nothing to suppress."""
         self._connect()
         try:
             _ = self._calendar.Items.Count

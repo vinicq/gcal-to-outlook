@@ -75,10 +75,11 @@ jobs:
         run: choco install innosetup -y
 
       - name: Compile installer
-        # Produces installer/GCalSync-Setup.exe (OutputDir/OutputBaseFilename in installer.iss).
+        # Produces installer/GCalSync-Setup-<version>.exe
+        # (OutputDir/OutputBaseFilename in installer.iss; the name carries MyAppVersion).
         run: iscc installer.iss
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: installer/GCalSync-Setup.exe
+          files: installer/GCalSync-Setup-*.exe

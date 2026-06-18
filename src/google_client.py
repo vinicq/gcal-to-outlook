@@ -10,6 +10,7 @@ Supports both read and write operations (create, update, delete).
 import os
 from pathlib import Path
 
+from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -26,21 +27,58 @@ class GoogleClient:
         self.calendar_id = calendar_id
         self.service = None
 
-    def authenticate(self):
+    def authenticate(self, allow_interactive: bool = True):
+        """Load (or obtain) Google credentials and build the calendar service.
+
+        allow_interactive=False is for unattended/background cycles (the tray
+        spawns `once` every interval): with no usable token it raises instead of
+        opening a browser, so a background cycle never pops an OAuth tab. Only the
+        explicit `login`/setup paths run the interactive flow.
+
+        The interactive flow forces `prompt=consent` with `access_type=offline`
+        so Google always returns a refresh_token. Without it Google omits the
+        refresh_token on a repeat consent, the saved token then carries only a
+        short-lived access token, and the next launch (after it expires) would
+        prompt for login again - the "asks for Google authorization on every
+        boot" symptom.
+        """
         creds = None
         if os.path.exists(self.token_file):
             creds = Credentials.from_authorized_user_file(self.token_file, SCOPES)
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
+
+        if creds and creds.valid:
+            self.service = self._build_service(creds)
+            return
+
+        if creds and creds.expired and creds.refresh_token:
+            try:
                 creds.refresh(Request())
-            else:
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    self.credentials_file, SCOPES
-                )
-                creds = flow.run_local_server(port=0)
-            with open(self.token_file, "w", encoding="utf-8") as f:
-                f.write(creds.to_json())
-        self.service = build("calendar", "v3", credentials=creds, cache_discovery=False)
+                self._save_token(creds)
+                self.service = self._build_service(creds)
+                return
+            except RefreshError:
+                # Refresh token revoked or expired: fall through to a fresh
+                # interactive login, or surface the failure in background mode.
+                creds = None
+
+        if not allow_interactive:
+            raise RuntimeError(
+                "Google authorization required and no valid token is available. "
+                "Open the panel and click Reconfigure (or run 'login') to sign in."
+            )
+
+        flow = InstalledAppFlow.from_client_secrets_file(self.credentials_file, SCOPES)
+        creds = flow.run_local_server(port=0, access_type="offline", prompt="consent")
+        self._save_token(creds)
+        self.service = self._build_service(creds)
+
+    def _save_token(self, creds) -> None:
+        with open(self.token_file, "w", encoding="utf-8") as f:
+            f.write(creds.to_json())
+
+    @staticmethod
+    def _build_service(creds):
+        return build("calendar", "v3", credentials=creds, cache_discovery=False)
 
     def list_changes(self, sync_token: str | None, time_min: str, time_max: str):
         """Return (event_list, new_sync_token).

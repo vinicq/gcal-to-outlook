@@ -696,20 +696,39 @@ class Monitor:
             text="  Syncing...  ", state="disabled", bg=BG3, fg=FG2)
 
         def _run():
+            rc = -1
             try:
-                subprocess.run(SYNC_CMD, capture_output=True, timeout=120,
-                               creationflags=_NO_WINDOW)
+                proc = subprocess.run(SYNC_CMD, capture_output=True, timeout=120,
+                                      creationflags=_NO_WINDOW)
+                rc = proc.returncode
             except Exception:
-                pass
-            self.root.after(0, self._sync_done)
+                rc = -1
+            self.root.after(0, lambda: self._sync_done(rc))
 
         threading.Thread(target=_run, daemon=True).start()
 
-    def _sync_done(self):
+    def _sync_done(self, rc: int = 0):
         self._sync_running = False
         self.btn_sync.configure(
             text="  Sync now  ", state="normal", bg=BLUE, fg=BG)
         self._refresh_sync_labels()
+        # A non-zero exit means the cycle aborted (e.g. Outlook crashed under the
+        # COM layer). The detail is already in sync.log; surface it discreetly
+        # here instead of a popup, and let the next successful cycle clear it.
+        if rc != 0:
+            self.lbl_result.configure(
+                text="Last sync failed - check the log", fg=RED)
+            if self._tray is not None:
+                try:
+                    self._tray.notify(
+                        "A sync cycle failed. Open the panel and view the log.",
+                        "GCal → Teams Sync",
+                    )
+                except Exception:
+                    pass
+        else:
+            # Clear any prior failure styling once a cycle succeeds again.
+            self.lbl_result.configure(fg=GREEN)
         if self._log_visible:
             self._update_log()
 

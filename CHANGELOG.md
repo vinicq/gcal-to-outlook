@@ -7,15 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.5] - 2026-06-17
+## [1.0.5] - 2026-06-18
 
 ### Fixed
 
+- Google no longer asks for authorization on every startup. The login now forces
+  offline access and consent, so Google always returns a refresh token; the saved
+  token is then refreshed silently across reboots instead of expiring overnight
+  and sending you back to the browser.
+- Background sync never opens a browser tab. When no usable token exists, an
+  unattended cycle now logs the error and stops instead of launching an OAuth tab
+  every interval (which left several `localhost` pages open at login). Re-login
+  is done only from the panel's Reconfigure button. The same guard applies to
+  Microsoft (Graph) mode.
+- The first-run wizard no longer leaves a crashed window behind. The fresh
+  monitor process it starts no longer inherits the bundler's temp-directory
+  variable, which had made it crash on launch with a "Tcl data directory not
+  found" error.
+- Only one sync loop runs at a time. A single-instance guard stops a second tray
+  launch from starting a duplicate background loop.
+- If Outlook crashes mid-sync, the cycle now logs the error and exits cleanly
+  instead of popping a traceback window.
 - No more black console window. The app is now built as a windowed (GUI)
   program, so closing a stray terminal can no longer kill the app or remove the
   tray icon. The setup wizard and the dedup tool still open a console on demand,
   since they are interactive. The headless sync logs to `sync.log` and no longer
   needs a console at all.
+
+### Changed
+
+- The installer filename now carries the version (`GCalSync-Setup-1.0.5.exe`), so
+  downloads from different releases no longer overwrite each other.
 
 ## [1.0.4] - 2026-06-17
 
