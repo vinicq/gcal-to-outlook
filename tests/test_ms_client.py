@@ -47,6 +47,18 @@ def test_background_without_account_raises_and_no_browser(tmp_path, monkeypatch)
     assert app.interactive_called is False
 
 
+def test_background_stale_account_silent_fails_raises_and_no_browser(tmp_path, monkeypatch):
+    # The common unattended-failure case: a cached account exists but its token
+    # can no longer be refreshed silently (acquire_token_silent -> None). This
+    # must still raise rather than fall through to the browser.
+    g = _client(tmp_path)
+    app = FakeApp(accounts=["acct"], silent=None)
+    monkeypatch.setattr(g, "_build_app", lambda: (app, object()))
+    with pytest.raises(RuntimeError, match="authorization required"):
+        g.authenticate(allow_interactive=False)
+    assert app.interactive_called is False
+
+
 def test_cached_account_authenticates_silently(tmp_path, monkeypatch):
     g = _client(tmp_path)
     app = FakeApp(accounts=["acct"], silent={"access_token": "tok-silent"})

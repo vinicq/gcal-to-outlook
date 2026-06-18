@@ -63,6 +63,10 @@ def resolve(path_str):
 
 
 def build_clients(cfg):
+    # Invariant: every client returned here MUST honor allow_interactive=False
+    # by NOT opening a browser (raise instead). Background cycles (run/once) rely
+    # on it; a new client that prompts anyway would reintroduce the "OAuth tab on
+    # every sync interval" bug. COM is exempt only because it never prompts.
     g = GoogleClient(
         credentials_file=resolve(cfg["google"]["credentials_file"]),
         token_file=resolve(cfg["google"]["token_file"]),
@@ -87,10 +91,10 @@ def build_clients(cfg):
 def do_login(cfg):
     g, m = build_clients(cfg)
     log.info("Authenticating with Google...")
-    g.authenticate()
+    g.authenticate(allow_interactive=True)  # login mode is the sanctioned interactive entry
     log.info("Google OK.")
     log.info("Authenticating with Microsoft...")
-    m.authenticate()
+    m.authenticate(allow_interactive=True)
     log.info("Microsoft OK. Login complete.")
 
 
